@@ -1,42 +1,44 @@
 name: Deploy Frontend to cPanel
-
 on:
   push:
     branches: [master]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy.yml'
-
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        working-directory: frontend
+      - name: Install
         run: npm ci
+        working-directory: frontend
 
       - name: Build
-        working-directory: frontend
         run: npm run build
-        env:
-          VITE_API_URL: https://jsc-market.cm/api
+        working-directory: frontend
 
-      - name: Recreate .htaccess
+      - name: Htaccess
         run: |
-          printf '<IfModule mod_rewrite.c>\n  RewriteEngine On\n  RewriteBase /\n  RewriteRule ^index\\.html$ - [L]\n  RewriteRule ^sitemap\\.xml$ - [L]\n  RewriteRule ^robots\\.txt$ - [L]\n  RewriteCond %%{REQUEST_URI} !^/api/\n  RewriteCond %%{REQUEST_FILENAME} !-f\n  RewriteCond %%{REQUEST_FILENAME} !-d\n  RewriteRule . /index.html [L]\n</IfModule>\n' > frontend/dist/.htaccess
+          {
+            echo '<IfModule mod_rewrite.c>'
+            echo '  RewriteEngine On'
+            echo '  RewriteBase /'
+            echo '  RewriteRule ^index\.html$ - [L]'
+            echo '  RewriteRule ^sitemap\.xml$ - [L]'
+            echo '  RewriteRule ^robots\.txt$ - [L]'
+            echo '  RewriteCond %{REQUEST_URI} !^/api/'
+            echo '  RewriteCond %{REQUEST_FILENAME} !-f'
+            echo '  RewriteCond %{REQUEST_FILENAME} !-d'
+            echo '  RewriteRule . /index.html [L]'
+            echo '</IfModule>'
+          } > frontend/dist/.htaccess
 
-      - name: Deploy via FTP
+      - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -44,8 +46,3 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: frontend/dist/
           server-dir: public_html/jsc-market.cm/
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
